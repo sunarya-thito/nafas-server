@@ -1,0 +1,14 @@
+{
+  "verbose": true,
+  "hash_salt": "97u31q2y8eh31hu2r3h9eudib8",
+  "google_client_id": "1234567890.apps.googleusercontent.com",
+  "hash_username_shift": 5,
+  "hash_password_shift": 3,
+  "database": {
+    "hostname": "localhost",
+    "port": 3306,
+    "username": "root",
+    "password": "",
+    "database": "nafas"
+  }
+}
