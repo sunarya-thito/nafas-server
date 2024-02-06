@@ -47,7 +47,7 @@ client.on('error', function (error) {
 
 client.on('connect', function () {
     console.log('connected');
-    client.subscribe('nafas', function (err) {
+    client.subscribe('nafas_' + deviceId, function (err) {
         if (err) {
             console.error(err);
         }
@@ -116,6 +116,5 @@ function sendRandomData() {
     }
     const command = builder.trim();
     const topic = 'nafas_data';
-    console.log('sending', command);
     client.publish(topic, command);
 }

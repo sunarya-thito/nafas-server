@@ -1,14 +1,27 @@
 import {
-    api_request_activities, api_request_beep_device, api_request_change_config,
+    api_request_activities,
+    api_request_beep_device,
+    api_request_change_config,
+    api_request_color,
     api_request_config,
     api_request_data,
-    api_request_devices, api_request_forecast,
+    api_request_devices,
+    api_request_forecast,
     api_request_login,
-    api_request_logout, api_request_rename_device, api_request_sensor_values,
+    api_request_logout,
+    api_request_rename_device,
+    api_request_sensor_values,
     api_response_activities,
-    api_response_config, api_response_data, api_response_devices, api_response_error, api_response_forecast,
+    api_response_color,
+    api_response_config,
+    api_response_data,
+    api_response_devices,
+    api_response_error,
+    api_response_forecast,
     api_response_login_success,
-    api_response_logout_success, api_response_sensor_values, api_response_success
+    api_response_logout_success,
+    api_response_sensor_values,
+    api_response_success
 } from "./consts.js";
 
 export function parseDtoRequest(json) {
@@ -36,6 +49,8 @@ export function parseDtoRequest(json) {
             return new APIRequestChangeConfig(json["userToken"], json["configurations"]);
         case api_request_sensor_values:
             return new APIRequestSensorValues(json["deviceId"]);
+        case api_request_color:
+            return new APIRequestColor(json["deviceId"]);
         default:
             return null;
     }
@@ -251,3 +266,20 @@ export class APIResponseForecast extends APIData {
         this.forecast = forecast;
     }
 }
+
+export class APIRequestColor extends APIData {
+    deviceId;
+    constructor(deviceId) {
+        super(api_request_color);
+        this.deviceId = deviceId;
+    }
+}
+
+export class APIResponseColor extends APIData {
+    color;
+    constructor(color) {
+        super(api_response_color);
+        this.color = color;
+    }
+}
+

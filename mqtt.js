@@ -29,6 +29,7 @@ function startMqtt(port, server) {
     const aedes = new Aedes();
     const mqttServer = net.createServer(aedes.handle);
     mqttServer.sendCommand = function (clientId, command) {
+        console.log('Sending command to ' + clientId + ': ' + command);
         aedes.publish({
             cmd: 'publish',
             qos: 0,

@@ -1,5 +1,6 @@
 import {
-    packet_outbound_activity, packet_outbound_config,
+    packet_inbound_color,
+    packet_outbound_activity, packet_outbound_color, packet_outbound_config,
     packet_outbound_data, packet_outbound_device_rename,
 } from "./consts.js";
 
@@ -18,8 +19,30 @@ export function packetFromJson(json) {
             return new PacketOutboundActivity(json.activity);
         case packet_outbound_config:
             return new PacketConfigChangeOutbound(json.configurations);
+        case packet_outbound_device_rename:
+            return new PacketDeviceRenameOutbound(json.deviceId, json.name);
+        case packet_inbound_color:
+            return new PacketInboundColor(json.color);
+        case packet_outbound_color:
+            return new PacketOutboundColor(json.color);
         default:
             return null;
+    }
+}
+
+export class PacketInboundColor extends Packet {
+    color; // {hue: number, saturation: number, value: number}
+    constructor(color) {
+        super(packet_inbound_color);
+        this.color = color;
+    }
+}
+
+export class PacketOutboundColor extends Packet {
+    color; // {hue: number, saturation: number, value: number}
+    constructor(color) {
+        super(packet_outbound_color);
+        this.color = color;
     }
 }
 

@@ -83,6 +83,21 @@ const Device = sequelize.define('device', {
         type: DataTypes.STRING(255),
         allowNull: true,
     },
+    hue: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
+    saturation: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
+    value: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
 });
 
 const Activity = sequelize.define('activity', {
@@ -189,6 +204,8 @@ async function initDatabase() {
         foreignKey: 'device',
         as: 'deviceKey',
     });
+    // await sequelize.sync();
+    // force
     await sequelize.sync();
     // store default sensor configurations (ignore if already exists)
     await SensorConfig.findOrCreate({

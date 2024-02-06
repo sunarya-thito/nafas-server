@@ -11,9 +11,10 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import urllib from "url";
 import {startCronJob} from "./cron.js";
+// cors
 
 async function startNafasServer() {
-    const port = 8080;
+    const port = 8081;
     const server = new Server();
     server.initialize();
     server.mqttServer = startMqtt(port_mqtt, server);
@@ -22,6 +23,9 @@ async function startNafasServer() {
     app.use(cors());
     // use plain text body parser
     app.use(bodyParser.text({type: '*/*'}));
+
+    // app use public
+    app.use(express.static('web'));
 
     const httpServer = http.createServer(app);
 

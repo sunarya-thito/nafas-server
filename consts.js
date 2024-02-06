@@ -1,3 +1,4 @@
+export const production = false;
 export const port_websocket = 8080;
 export const port_mqtt = 1883;
 
@@ -18,6 +19,10 @@ export const packet_outbound_activity = "PacketOutboundActivity";
 export const packet_outbound_config = "PacketOutboundConfig";
 export const packet_outbound_device_rename = "PacketOutboundDeviceRename";
 
+export const packet_outbound_color = "PacketOutboundColor";
+
+export const packet_inbound_color = "PacketInboundColor";
+
 export const role_admin = "admin";
 export const role_user = "user";
 export const api_request_change_config = "APIRequestChangeConfig";
@@ -27,6 +32,7 @@ export const api_request_rename_device = "APIRequestRenameDevice";
 
 export const api_request_sensor_values = "APIRequestSensorValues";
 export const api_response_sensor_values = "APIResponseSensorValues";
+export const api_response_color = "APIResponseColor";
 
 export const api_response_error = "APIResponseError";
 export const api_response_login_success = "APIResponseLoginSuccess";
@@ -43,6 +49,8 @@ export const api_request_config = "APIRequestConfig";
 export const api_request_devices = "APIRequestDevices";
 export const api_request_activities = "APIRequestActivities";
 export const api_request_data = "APIRequestData";
+export const api_request_color = "APIRequestColor";
+
 
 export const event_device_online = "device_online";
 export const event_device_offline = "device_offline";

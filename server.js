@@ -4,27 +4,27 @@ import {verifyUser} from "./auth.js";
 import {
     activity_sensor_offline,
     activity_sensor_online,
-    data_input_interval, forecast_cache_validity,
+    data_input_interval, forecast_cache_validity, production,
     role_admin,
     sensor_network, sensorIds
 } from "./consts.js";
 import {
-    PacketConfigChangeOutbound, PacketDeviceRenameOutbound,
-    PacketOutboundActivity,
+    PacketConfigChangeOutbound, PacketDeviceRenameOutbound, packetFromJson, PacketInboundColor,
+    PacketOutboundActivity, PacketOutboundColor,
     PacketOutboundData
 } from "./packets.js";
 import {EventActivity, EventDeviceDataUpdated, EventDeviceOffline, EventDeviceOnline} from "./events.js";
 // import ARIMA from "arima";
 
 import {
-    APIRequestActivities, APIRequestBeepDevice, APIRequestChangeConfig,
+    APIRequestActivities, APIRequestBeepDevice, APIRequestChangeConfig, APIRequestColor,
     APIRequestConfig,
     APIRequestData,
     APIRequestDevices,
     APIRequestForecast,
     APIRequestLogin,
     APIRequestLogout, APIRequestRenameDevice, APIRequestSensorValues,
-    APIResponseActivities,
+    APIResponseActivities, APIResponseColor,
     APIResponseConfig,
     APIResponseData,
     APIResponseDevices,
@@ -45,6 +45,9 @@ class SensorDevice {
     websocketServer; // every device has its own websocket, but bound to this url: ws://localhost:8080/device?id={id}
     name;
     server;
+    hue;
+    saturation;
+    value;
     constructor(id, server) {
         this.id = id;
         this.server = server;
@@ -52,12 +55,51 @@ class SensorDevice {
             this.isAlive = true;
         }
         this.websocketServer = new WebSocketServer({ noServer: true });
-        this.websocketServer.on('connection', function connection(ws) {
+        this.websocketServer.on('connection', (ws) => {
             ws.isAlive = true;
             ws.on('error', function error(err) {
                 console.error(err);
             });
             ws.on('pong', heartbeat);
+
+            ws.on('message', async (message) => {
+                console.log('received: %s', message);
+                let json;
+                try {
+                    json = JSON.parse(message);
+                } catch (e) {
+                    return;
+                }
+                const packet = packetFromJson(json);
+                if (packet === null) {
+                    return;
+                }
+                console.log(JSON.stringify(packet));
+                if (packet instanceof PacketInboundColor) {
+                    let color = packet.color;
+                    this.hue = parseInt(color.hue.toString());
+                    this.saturation = parseInt(color.saturation.toString());
+                    this.value = parseInt(color.value.toString());
+                    // send mqtt command
+                    this.server.mqttServer.sendCommand(this.id, `led ${this.hue} ${this.saturation} ${this.value}`);
+                    // broadcast to all clients
+                    this.broadcast(new PacketOutboundColor({
+                        hue: this.hue,
+                        saturation: this.saturation,
+                        value: this.value,
+                    }), ws);
+                    // update on database
+                    await Device.update({
+                        hue: this.hue,
+                        saturation: this.saturation,
+                        value: this.value,
+                    }, {
+                        where: {
+                            id: this.id,
+                        }
+                    });
+                }
+            });
         });
 
         const interval = setInterval(() => {
@@ -70,56 +112,18 @@ class SensorDevice {
         }, 30000);
 
         // listen for incoming messages
-        // this.websocketServer.on('message', async (message) => {
-        //     let json;
-        //     try {
-        //         json = JSON.parse(message);
-        //     } catch (e) {
-        //         return;
-        //     }
-        //     const packet = packetFromJson(json);
-        //     if (packet === null) {
-        //         return;
-        //     }
-        //     // check if packet is change config packet
-        //     // if (packet instanceof PacketConfigChangeInbound) {
-        //     //     let token = packet.userToken; // this is token from database not google token
-        //     //     let user = await getUserFromSessionToken(token);
-        //     //     if (user === null || user.role !== role_admin) {
-        //     //         return;
-        //     //     }
-        //     //     // config is a global thing, not a device thing
-        //     //     const config = packet.configurations; // {sensorId: {min: number, max: number}}
-        //     //     // broadcast to all clients
-        //     //     this.broadcast(new PacketConfigChangeOutbound(config));
-        //     //     // update database
-        //     //     for (let sensorId in config) {
-        //     //         if (config.hasOwnProperty(sensorId)) {
-        //     //             let sensorConfig = config[sensorId];
-        //     //             let min = sensorConfig.min;
-        //     //             let max = sensorConfig.max;
-        //     //             // update database
-        //     //             await SensorConfig.update({
-        //     //                 min: min,
-        //     //                 max: max,
-        //     //             }, {
-        //     //                 where: {
-        //     //                     sensor: sensorId,
-        //     //                     device: this.id,
-        //     //                 }
-        //     //             });
-        //     //         }
-        //     //     }
-        //     // }
-        // });
+
 
         this.websocketServer.on('close', function close() {
             clearInterval(interval);
         });
     }
-    broadcast(packet) {
+    broadcast(packet, exclude = null) {
         let jsonPacket = JSON.stringify(packet);
         this.websocketServer.clients.forEach(async function each(client) {
+            if (client === exclude) {
+                return;
+            }
             if (client.readyState === WebSocket.OPEN) {
                 client.send(jsonPacket);
             }
@@ -294,6 +298,11 @@ class Server {
                     }
                 });
                 device.name = deviceData[0].name;
+                device.hue = deviceData[0].hue;
+                device.saturation = deviceData[0].saturation;
+                device.value = deviceData[0].value;
+                // send led <hue> <saturation> <value>
+                this.mqttServer.sendCommand(device.id, `led ${device.hue} ${device.saturation} ${device.value}`);
                 this.devices.push(device);
             }
             await device.updateOnlineStatus(true);
@@ -474,7 +483,7 @@ class Server {
         } else if (request instanceof APIRequestBeepDevice) {
             let userToken = request.userToken;
             let user = await getUserFromSessionToken(userToken);
-            if (user === null || user.role !== role_admin) {
+            if (production && (user === null || user.role !== role_admin)) {
                 return new APIResponseError("Invalid token");
             }
             let deviceId = request.deviceId;
@@ -487,7 +496,7 @@ class Server {
         } else if (request instanceof APIRequestRenameDevice) {
             let userToken = request.userToken;
             let user = await getUserFromSessionToken(userToken);
-            if (user === null || user.role !== role_admin) {
+            if (production && (user === null || user.role !== role_admin)) {
                 return new APIResponseError("Invalid token");
             }
             let deviceId = request.deviceId;
@@ -514,7 +523,7 @@ class Server {
         } else if (request instanceof APIRequestChangeConfig) {
             let userToken = request.userToken;
             let user = await getUserFromSessionToken(userToken);
-            if (user === null || user.role !== role_admin) {
+            if (production && (user === null || user.role !== role_admin)) {
                 return new APIResponseError("Invalid token");
             }
             let config = request.configurations; // {sensorId: {min: number, max: number}}
@@ -558,6 +567,18 @@ class Server {
             }
             let result = await createUserSession(googleUser, deviceName);
             return new APIResponseLoginSuccess(result.token, result.role);
+        } else if (request instanceof APIRequestColor) {
+            let deviceId = request.deviceId;
+            let device = this.getDeviceById(deviceId);
+            if (device !== undefined) {
+                let color = {
+                    hue: device.hue,
+                    saturation: device.saturation,
+                    value: device.value,
+                };
+                return new APIResponseColor(color);
+            }
+            return new APIResponseError("Device not found");
         } else if (request instanceof APIRequestLogout) {
             let token = request.token;
             let session = await UserSession.findOne({
